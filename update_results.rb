@@ -45,8 +45,8 @@ def update_losers(conn, date, game_day, game_1, game_2)
     ")
 end
 
-# update_result(conn, game_1, date, game_day)
-# update_result(conn, game_2, date, game_day)
+update_result(conn, game_1, date, game_day)
+update_result(conn, game_2, date, game_day)
 update_losers(conn, date, game_day, game_1, game_2)
 
 # results = conn.exec("
