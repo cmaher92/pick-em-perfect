@@ -8,15 +8,21 @@ worksheet = spreadsheet.worksheets[0]
 
 conn = PG.connect(dbname: 'pick_em_perfect')
 
+# pull the picks from the database
+# => picks must have a result and be for the correct week
+#
+
+puts 'What DATE did you start allowing picks?'
+puts 'YYYY-MM-DD format'
+date = gets.chomp
 
 pull_picks_query = "
     SELECT * FROM picks
-    WHERE time_pick_submitted >= TO_DATE('2018-04-15', 'YYYY-MM-DD')
-    AND time_pick_submitted <  TO_DATE('2018-04-17', 'YYYY-MM-DD');
+    WHERE time_pick_submitted >= TO_DATE('#{date}', 'YYYY-MM-DD')
+    AND result != 'nil';
   "
+
 picks = conn.exec(pull_picks_query)
-picks = picks.select { |pick| pick['result'] != nil }
-# remove picks without a result
 
 def retrieve_email(conn, user_id)
   result = conn.exec("SELECT * FROM users WHERE id = #{user_id}")
@@ -78,18 +84,14 @@ def query_picks(conn, user_id, day_of_week, start_date)
   picks
 end
 
-def add_picks(conn, users)
+def add_picks(conn, users, date)
   puts 'What day of the week do you want to display the picks for?'
   puts 'monday, tuesday etc...'
   day_of_week = gets.chomp.downcase
 
-  puts 'What date did you start allowing picks?'
-  puts 'YYYY-MM-DD'
-  start_date = gets.chomp.downcase
-
   users.map! do |user|
     user['picks'] = []
-    users_picks = query_picks(conn, user['user_id'], day_of_week, start_date)
+    users_picks = query_picks(conn, user['user_id'], day_of_week, date)
     users_picks.each do |pick|
       user['picks'] << pick['team']
     end
@@ -105,7 +107,7 @@ def push_leaderboard_to_sheets(leaderboard, worksheet)
     worksheet[row, 1] = user['email'].split('@')[0]
     worksheet[row, 2] = user['wins']
     worksheet[row, 3] = user['loses']
-    worksheet[row, 4] = user['picks']
+    worksheet[row, 4] = "#{user['picks'][0]}, #{user['picks'][1]}"
     row += 1
   end
   worksheet.save
@@ -113,6 +115,6 @@ end
 
 users = generate_users(picks, conn)
 users_with_record = calculate_record(conn, users, picks)
-users_with_record_and_picks = add_picks(conn, users_with_record)
+users_with_record_and_picks = add_picks(conn, users_with_record, date)
 users_with_record_and_picks_sorted = users_with_record_and_picks.sort_by { |pick| pick['wins'] }.reverse
 push_leaderboard_to_sheets(users_with_record_and_picks_sorted, worksheet)

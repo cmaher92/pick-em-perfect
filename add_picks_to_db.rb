@@ -1,27 +1,14 @@
-# pull picks from form
-#    - pull picks and database comparing differences
-#    - check to see if any of these picks are new users, add to db if so
-#    - finally, add picks to database unless it's a repeat
-
-# to do
-#   - improve the checking for repeats, it only will count if its the last day
-
  require 'google_drive'
  require 'pg'
  require 'pry'
 
-# initializes connection to database
+# init connection to database
 conn = PG.connect(dbname: 'pick_em_perfect')
 
 # inititalizes connection to google sheets where form data is
 session = GoogleDrive::Session.from_config("client_secret.json")
 spreadsheet = session.file_by_title('My Form')
 worksheet = spreadsheet.worksheets[0]
-
-# pull picks from spreadsheet
-  # total 14 picks
-  # label each pick with the assoc. day
-  # add column to database with the day of the game
 
 game_day_mapper = [
   'monday', 'monday',
@@ -68,6 +55,28 @@ def add_new_users(picks, conn)
   end
 end
 
+def filter_late_picks(picks)
+  # filter any picks that aren't within the window
+  # ask the user what the window is for this week
+  # select all the picks that fall within that window
+  # return picks
+  picks.select { |pick| pick['time_pick_submitted'] }
+end
+
+# check to see if their are repeated picks from the same user
+#   a repeated pick is classified as a pick that has been submitted
+#   within the allowable window of time, typically Friday - Monday
+#   Anytime Friday - 6pm EST Sunday
+#   If there is multiple picks from the same user within that window
+#   select the last pick as their entry, remove all other picks
+
+def remove_repeat_picks(conn, picks)
+  # for each pick
+  #   check to see if any picks from the user_id exist in the db
+  #   to count they must be picks within the allowable window
+  #   if they are, remove them from the database
+end
+
 def add_pick_to_database(conn, pick_from_form, user_id)
   # given an array of picks for a user
   # add each one to the database
@@ -98,4 +107,5 @@ end
 
 picks_from_form = pull_data_from_spreadsheet(worksheet, game_day_mapper)
 add_new_users(picks_from_form, conn)
+filtered_picks = filter_late_picks(picks_from_form)
 add_new_picks_to_db(picks_from_form, conn)
